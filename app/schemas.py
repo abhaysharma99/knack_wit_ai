@@ -21,3 +21,11 @@ class JDStructured(BaseModel):
     domain: Optional[str] = None
     seniority: Optional[str] = None
 
+
+class CandidateStructured(BaseModel):
+    """Structured output of Module 2 - Resume parsing (input to embedding)."""
+    name: Optional[str] = None
+    skills: List[str] = Field(default_factory=list)
+    experience_years: Optional[float] = None
+    projects: List[str] = Field(default_factory=list)
+    domain: Optional[str] = None

@@ -10,3 +10,7 @@ pydantic-settings==2.10.1
 python-dotenv==1.1.1
 google-generativeai==0.8.5
 pypdf==5.1.0
+numpy
+sentence-transformers
+faiss-cpu
+torch

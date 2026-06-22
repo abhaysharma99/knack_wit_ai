@@ -1,4 +1,7 @@
-
+from app.embedder import embed_passage, embed_query
+from app.vector_store import add_candidate, search
+from app.db.crud import save_candidate, get_candidates_by_ids
+from uuid import uuid4
 
 from fastapi import APIRouter, UploadFile, HTTPException, Form
 from typing import Optional
@@ -8,7 +11,7 @@ from pathlib import Path
 from app.celery_worker import process_file_task
 from app.jd_parser import parse_jd, extract_text_from_pdf
 router = APIRouter(prefix="/api/v1/ingest")
-from uuid import uuid4
+
 # Simulated in-memory task store (async-safe)
 tasks = {}
 task_lock = asyncio.Lock()
@@ -71,6 +74,56 @@ async def parse_jd_endpoint(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error parsing job description: {str(e)}")
+        
+@router.post("/add-candidate")
+async def add_candidate_endpoint(
+    text: str = Form(...)
+):
+    try:
+        candidate_id = str(uuid4())
+
+        vector = embed_passage(text)
+
+        add_candidate(candidate_id, vector)
+
+        save_candidate(
+            raw_text=text
+        )
+
+        return {
+            "candidate_id": candidate_id,
+            "status": "indexed"
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+@router.post("/match-candidates")
+async def match_candidates(
+    jd_text: str = Form(...),
+    k: int = Form(10)
+):
+    try:
+        jd_vector = embed_query(jd_text)
+
+        results = search(jd_vector, k)
+
+        return {
+            "matches": results,
+            "total": len(results)
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
+
 
 
 @router.get("/{task_id}")
