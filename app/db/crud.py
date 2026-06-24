@@ -222,7 +222,42 @@ def get_all_candidates() -> list[dict]:
     finally:
         session.close()
 
+def get_candidate_by_id(candidate_id: str) -> dict | None:
+    session = Session()
 
+    try:
+        candidate = (
+            session.query(Candidate)
+            .options(
+                joinedload(Candidate.skills),
+                joinedload(Candidate.projects)
+            )
+            .filter(Candidate.id == candidate_id)
+            .first()
+        )
+
+        if candidate is None:
+            return None
+
+        return {
+            "id": candidate.id,
+            "name": candidate.name,
+            "domain": candidate.domain,
+            "seniority": candidate.seniority,
+            "experience": candidate.total_experience_years,
+
+            "skills": [
+                s.name for s in candidate.skills
+            ],
+
+            "projects": [
+                p.title for p in candidate.projects
+                if p.title
+            ]
+        }
+
+    finally:
+        session.close()
 # ─────────────────────────────────────────────
 # JOB
 # ─────────────────────────────────────────────

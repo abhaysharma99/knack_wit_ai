@@ -21,57 +21,51 @@ logger = logging.getLogger(__name__)
 genai.configure(api_key=settings.GEMINI_API_KEY)
 _model = genai.GenerativeModel(settings.GEMINI_MODEL)
 
-_SYSTEM_PROMPT = """You are a precise resume parsing engine.
+_SYSTEM_PROMPT = """
+You are a precise resume parsing engine.
 
-Given the raw resume text below, extract structured data and return ONLY valid
-JSON — no markdown fences, no commentary, no preamble, no trailing text.
+Given the raw resume text below, extract structured data and return ONLY valid JSON.
 
 Return exactly this structure:
+
 {
-  "name":                   string or null,
-  "email":                  string or null,
-  "phone":                  string or null,
-  "current_role":           string or null,
-  "domain":                 string or null,
-  "seniority":              "Junior" | "Mid" | "Mid-Senior" | "Senior" | "Lead" | "Unknown",
-  "total_experience_years": number or null,
+  "name": null,
+  "email": null,
+  "phone": null,
+  "current_role": null,
+  "domain": null,
+  "seniority": "Unknown",
+  "total_experience_years": null,
   "skills": [
-    {"name": string, "category": "technical" | "tool" | "language" | "soft"}
+    {
+      "name": "",
+      "category": "technical"
+    }
   ],
   "projects": [
     {
-      "title":        string or null,
-      "description":  string or null,
-      "technologies": string or null
+      "title": null,
+      "description": null,
+      "technologies": null
     }
   ]
 }
 
 Rules:
-- name: full name from the header/top of the resume. null if not found.
-- email: first valid email address found. null if not found.
-- phone: first phone number found, keep original format. null if not found.
-- current_role: most recent job title. null if not found.
-- domain: the primary technical field (e.g. "Machine Learning", "Backend Engineering",
-  "Data Analytics", "DevOps", "Full Stack"). null if unclear.
-- seniority: infer from years of experience + job titles. Use "Unknown" if unclear.
-- total_experience_years: sum of all work experience in years as a decimal
-  (e.g. 2 years 6 months = 2.5). null if not determinable.
-- skills.name: normalize casing (e.g. "pytorch" → "PyTorch", "aws" → "AWS").
-- skills.category:
-    technical = programming languages, frameworks, ML libraries
-    tool      = platforms and tools (Docker, Git, AWS, Kubernetes)
-    language  = spoken/written languages (English, Hindi)
-    soft      = soft skills — only include if explicitly stated
-- projects: extract up to 5 most significant projects. technologies should be
-  a comma-separated string of tools/frameworks used in that project.
-- If a section is absent, return [] for skills/projects and null for scalar fields.
-- Do NOT invent information not present in the resume text.
+- Extract only information actually present in the resume.
+- Return valid JSON only.
+- Do not add markdown.
+- Do not add explanations.
+- Use null if a field is unavailable.
+- Use [] if skills or projects are unavailable.
 
 Resume text:
-\"\"\"
+
+<<<RESUME_TEXT>>>
+
 {resume_text}
-\"\"\"
+
+<<<END_RESUME_TEXT>>>
 """
 
 
@@ -155,7 +149,7 @@ def parse_resume(resume_text: str) -> dict:
 
     # Truncate to ~12k chars — resumes are rarely longer
     text_input = resume_text[:12000]
-    prompt = _SYSTEM_PROMPT.format(resume_text=text_input)
+    prompt = _SYSTEM_PROMPT.replace("{resume_text}", text_input)
 
     last_error = None
     for attempt in range(2):
